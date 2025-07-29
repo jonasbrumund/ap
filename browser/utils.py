@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 
-def json_extract(path, stem, suffix, dir_name, mr_copy):
+def json_extract(path, stem, suffix, dir_path):
     with open(path, 'r') as f:
 
         if suffix == '_analysis':
@@ -15,9 +15,11 @@ def json_extract(path, stem, suffix, dir_name, mr_copy):
             json_data = pd.read_json(data)
             # add stem name at the beggining of the DataFrame
             json_data.insert(0, 'stem', stem)
-            # add path to the wav file
-            json_data.insert(1, 'mr_copy', mr_copy)
-            json_data.insert(2, 'dir_name', dir_name)
+            # add directory to the DataFrame
+            dir = dir_path.split('/')
+            # remove first 5 elements from dir
+            dir = dir[5:]
+            json_data.insert(1, 'dir', [dir])
 
         else:
             data = f.read()
@@ -25,9 +27,6 @@ def json_extract(path, stem, suffix, dir_name, mr_copy):
             json_data = pd.read_json(data)
             # add stem name at the beggining of the DataFrame
             json_data.insert(0, 'stem', stem)
-            # add path to the wav file
-            json_data.insert(1, 'mr_copy', mr_copy)
-            json_data.insert(2, 'dir_name', dir_name)
 
     return json_data
 
@@ -105,19 +104,19 @@ def check_subdirectories():
                             for stem in stems:
                                 json_file = f"{stem}{suffix}.json"
                                 json_path = os.path.join(folder_path, json_file)
-                                audiocommons_data.append(json_extract(json_path, stem, suffix, dir_name, mrcopy))
+                                audiocommons_data.append(json_extract(json_path, stem, suffix, dir_path))
                         elif suffix == '_chroma':
                             folder_path = os.path.join(dir_path, 'chroma_analysis')
                             for stem in stems:
                                 json_file = f"{stem}{suffix}.json"
                                 json_path = os.path.join(folder_path, json_file)
-                                chroma_data.append(json_extract(json_path, stem, suffix, dir_name, mrcopy))
+                                chroma_data.append(json_extract(json_path, stem, suffix, dir_path))
                         elif suffix == '_pytimbre':
                             folder_path = os.path.join(dir_path, 'pt_analysis')
                             for stem in stems:
                                 json_file = f"{stem}{suffix}.json"
                                 json_path = os.path.join(folder_path, json_file)
-                                pt_analysis_data.append(json_extract(json_path, stem, suffix, dir_name, mrcopy))
+                                pt_analysis_data.append(json_extract(json_path, stem, suffix, dir_path))
 
                     # check if any of the lists are empty
                     if not audiocommons_data or not chroma_data or not pt_analysis_data:
@@ -147,4 +146,3 @@ def check_subdirectories():
 
 
 
-check_subdirectories()
