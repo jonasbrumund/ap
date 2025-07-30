@@ -5,7 +5,7 @@ import numpy as np
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QTableView, QLabel, QComboBox,
-    QPushButton, QCheckBox
+    QPushButton, QCheckBox, QListWidget, QGridLayout
 )
 from PySide6.QtCore import Qt
 from scipy.spatial import cKDTree
@@ -34,16 +34,28 @@ class MainWindow(QWidget):
         self.last_sorted_column = -1
         self.last_sort_order = Qt.AscendingOrder
 
-        # Table model shows selected columns
+        # Table model only shows selected columns
         self.table_model = PandasTableModel(
             self.data_model.df_filtered,
             columns=['stem', 'duration', 'channels',
-                     'tonality', 'tempo', 'bit_depth']
+                     'tonality', 'tempo', 'bit_depth',
+                     'distance']
         )
 
-        # Proxy model for sorting and filtering
-        # self.proxy_model = QSortFilterProxyModel()
-        # self.proxy_model.setSourceModel(self.table_model)
+        # Initialize distance computation
+        self.feature_list = QListWidget()
+        self.feature_list.setSelectionMode(QListWidget.MultiSelection)
+        # only use columns with numeric data for distance computation
+        numeric_cols = self.data_model.df_filtered.select_dtypes(
+            include=[np.number]
+        ).columns
+        remove_cols = [
+            'idx', 'distance'
+        ]  # columns to remove from the list
+        numeric_cols = [
+            col for col in numeric_cols if col not in remove_cols
+        ]
+        self.feature_list.addItems(numeric_cols)
 
         # --- Widgets ---
         self.layout = QVBoxLayout()
@@ -69,7 +81,6 @@ class MainWindow(QWidget):
 
         # Table view
         self.table_view = QTableView()
-        # self.table_view.setModel(self.proxy_model) # SEHR LANGSAM!!
         self.table_view.setModel(self.table_model)
         self.table_view.setSortingEnabled(True)
         self.layout.addWidget(self.table_view)
@@ -109,6 +120,34 @@ class MainWindow(QWidget):
         self.x_combo.addItems(self.scatter_cols)
         self.y_combo.addItems(self.scatter_cols)
 
+        # Distance computation
+        self.feature_list_1 = QListWidget()
+        self.feature_list_2 = QListWidget()
+        self.feature_list_1.setSelectionMode(QListWidget.MultiSelection)
+        self.feature_list_2.setSelectionMode(QListWidget.MultiSelection)
+        half = len(numeric_cols) // 2
+        left_cols = numeric_cols[:half]
+        right_cols = numeric_cols[half:]
+
+        self.feature_list_1.addItems(left_cols)
+        self.feature_list_2.addItems(right_cols)
+        self.calc_dist_btn = QPushButton("Similarity Search")
+        # self.layout.addWidget(self.feature_list)
+        self.layout.addWidget(self.calc_dist_btn)
+        self.master_checkbox = QCheckBox("Select all features")
+        self.similarity_combo = QComboBox()
+        self.similarity_combo.addItems(["Euclidean", "Cosine"])
+        self.similarity_combo.setToolTip(
+            "Select distance metric for similarity search"
+        )
+        feature_layout = QGridLayout()
+        feature_layout.addWidget(self.feature_list_1, 1, 0)
+        feature_layout.addWidget(self.feature_list_2, 1, 1)
+        feature_layout.addWidget(self.master_checkbox, 0, 0)
+        feature_layout.addWidget(self.similarity_combo, 0, 1)
+
+        self.layout.addLayout(feature_layout)
+
         # --- Signals ---
         self.regex_input.textChanged.connect(self.update_filter)
         self.x_combo.currentIndexChanged.connect(self.update_plot)
@@ -124,6 +163,9 @@ class MainWindow(QWidget):
 
         self.header = self.table_view.horizontalHeader()
         self.header.sectionClicked.connect(self.handle_header_clicked)
+
+        self.calc_dist_btn.clicked.connect(self.compute_similarity)
+        self.master_checkbox.stateChanged.connect(self.toggle_all_features)
 
         # --- Init plot ---
         self.update_info_label()
@@ -161,14 +203,25 @@ class MainWindow(QWidget):
         x = df[x_col].values
         y = df[y_col].values
 
+        # Color mapping based on 'distance' column if available
+        if 'distance' in df.columns and df['distance'].notnull().any():
+            distances = df['distance'].values
+            norm = (distances - distances.min()) / (distances.ptp() + 1e-9)
+            colors = [
+                pg.mkColor(pg.intColor(int(val * 255), hues=1))
+                for val in norm
+            ]
+        else:
+            colors = [pg.mkBrush(0, 0, 255, 120)] * len(x)
+
         # Store index mapping for click lookup
         spots = []
-        for idx, (px, py) in enumerate(zip(x, y)):
+        for idx, (px, py, col) in enumerate(zip(x, y, colors)):
             original_idx = df.index[idx]
             spots.append({
                 'pos': (px, py),
                 'data': original_idx,  # row index in df_filtered
-                'brush': pg.mkBrush(0, 0, 255, 120)
+                'brush': col
             })
 
         self.scatter.setData(spots)
@@ -201,6 +254,9 @@ class MainWindow(QWidget):
         # Highlight selected point
         self.highlight.setData([{'pos': point.pos()}])
 
+        # Update table selection
+        self.table_view.selectRow(row_pos)
+
     def table_row_clicked(self, index):
         """
         Handle table row click and highlight in scatter plot.
@@ -216,43 +272,11 @@ class MainWindow(QWidget):
         # Get the original index
         original_idx = self.table_model.df.index[view_row]
 
-        # # Use the row data
-        # row = self.table_model.df.iloc[view_row]
-
-        # # Use this for your audio file path logic
-        # self.select_sample(original_idx)
-
         # Highlight the corresponding point in the scatter plot
         for s in self.scatter.points():
             if s.data() == original_idx:
                 self.highlight.setData([{'pos': s.pos()}])
                 break
-
-        # # Get selected point pos for highlight
-        # df = self.data_model.df_filtered
-        # x_col = self.x_combo.currentText()
-        # y_col = self.y_combo.currentText()
-
-        # if x_col in df.columns and y_col in df.columns:
-        #     px = row[x_col]
-        #     py = row[y_col]
-        #     self.highlight.setData([{'pos': (px, py)}])
-
-    def select_sample(self, idx):
-        """
-        Store selected sample info and build full file path.
-        """
-        row = self.data_model.df_filtered.iloc[idx]
-        self.selected_file = row['stem']
-        dir_path = ast.literal_eval(row['dir'])
-        self.sample_path = os.path.join(
-            os.getcwd(), 'Samples', *dir_path, f"{self.selected_file}.wav"
-        )
-
-        # Update selected file in table by stem name
-        # self.table_view.selectRow(idx)
-        print(f"Selected: {self.selected_file}")
-        print(idx)
 
     def select_sample_by_row(self, row_pos):
         """
@@ -273,7 +297,11 @@ class MainWindow(QWidget):
     def handle_header_clicked(self, section):
         if section == self.last_sorted_column:
             # Toggle order
-            new_order = Qt.DescendingOrder if self.last_sort_order == Qt.AscendingOrder else Qt.AscendingOrder
+            new_order = (
+                Qt.DescendingOrder
+                if self.last_sort_order == Qt.AscendingOrder
+                else Qt.AscendingOrder
+            )
         else:
             # Default to ascending if different column
             new_order = Qt.AscendingOrder
@@ -281,6 +309,41 @@ class MainWindow(QWidget):
         self.table_model.sort(section, new_order)
         self.last_sorted_column = section
         self.last_sort_order = new_order
+
+    def compute_similarity(self):
+        if not self.selected_file:
+            print("Keine Referenzdatei gewählt!")
+            return
+
+        selected_items = self.feature_list_1.selectedItems()
+        selected_items += self.feature_list_2.selectedItems()
+        selected_features = [item.text() for item in selected_items]
+
+        if not selected_features:
+            print("Keine Merkmale ausgewählt!")
+            return
+
+        method = self.similarity_combo.currentText()
+
+        if method == "Euclidean":
+            df_sorted = self.data_model.compute_distances(
+                self.selected_file, selected_features
+            )
+        else:
+            df_sorted = self.data_model.compute_cosine_distances(
+                self.selected_file, selected_features
+            )
+
+        self.table_model.update_data(df_sorted)
+        self.data_model.df_filtered = df_sorted
+        self.update_plot()
+
+    def toggle_all_features(self, state):
+        checked = bool(state)
+        for i in range(self.feature_list_1.count()):
+            self.feature_list_1.item(i).setSelected(checked)
+        for i in range(self.feature_list_2.count()):
+            self.feature_list_2.item(i).setSelected(checked)
 
     def play_audio(self):
         """
@@ -304,6 +367,6 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     csv_path = os.path.join(os.getcwd(), 'ap', 'samples_data.csv')
     window = MainWindow(csv_path)
-    window.resize(1000, 700)
+    window.resize(800, 1100)
     window.show()
     sys.exit(app.exec())
