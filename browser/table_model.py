@@ -1,14 +1,19 @@
-from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PySide6.QtCore import Qt, QAbstractTableModel
 
 
 class PandasTableModel(QAbstractTableModel):
-    def __init__(self, df, columns=None, parent=None):
+    def __init__(self, df, columns=None, ignore_columns=None, parent=None):
         super().__init__(parent)
         self.df = df
         if columns:
             self.columns = columns
         else:
             self.columns = df.columns.tolist()
+
+        if ignore_columns:
+            self.columns = [
+                col for col in self.columns if col not in ignore_columns
+            ]
 
     def rowCount(self, parent=None):
         return len(self.df)
@@ -24,13 +29,6 @@ class PandasTableModel(QAbstractTableModel):
             row = index.row()
             col = index.column()
             col_name = self.columns[col]
-            # value = self.df.iloc[index.row(), index.column()]
-            # # round float values to 2 decimal places
-            # if isinstance(value, float):
-            #     return f"{value:.2f}"
-            # if isinstance(value, int):
-            #     return f"{value}"
-            # return f"{value}"
             return str(self.df.iloc[row][col_name])
 
         return None
@@ -47,11 +45,6 @@ class PandasTableModel(QAbstractTableModel):
         self.layoutAboutToBeChanged.emit()
         self.df = new_df.reset_index(drop=True)  # still full
         self.layoutChanged.emit()
-
-        # self.beginResetModel()
-        # self.df_all = new_df
-        # self.df = self.df_all[self.columns]
-        # self.endResetModel()
 
     def set_columns(self, columns):
         self.beginResetModel()

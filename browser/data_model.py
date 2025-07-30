@@ -8,8 +8,7 @@ class SampleDataModel:
     def __init__(self, csv_path):
         self.df_all = pd.read_csv(
             csv_path,
-            # dtype=str  # vermeidet teure Typ-Inferezen
-            low_memory=False,  # verhindert Warnungen bei gemischten Datentypen
+            low_memory=False
         )
         if 'distance' not in self.df_all.columns:
             self.df_all['distance'] = np.nan
@@ -22,7 +21,7 @@ class SampleDataModel:
 
         try:
             regex = re.compile(pattern, re.IGNORECASE)
-            # **Vektorisiert mit Series.str.contains**
+            # vectorized with Series.str.contains
             mask = self.df_all[column].str.contains(regex, na=False)
             self.df_filtered = self.df_all[mask].copy()
             return self.df_filtered
@@ -36,6 +35,10 @@ class SampleDataModel:
         based on selected numerical features.
         """
         df = self.df_filtered
+
+        # Fill NaN values with 0 for distance calculation
+        df[selected_features] = df[selected_features].fillna(0)
+
         ref_row = df[df['stem'] == reference_file]
         if ref_row.empty:
             print("Referenzdatei nicht gefunden!")
@@ -53,6 +56,10 @@ class SampleDataModel:
 
     def compute_cosine_distances(self, reference_file, selected_features):
         df = self.df_filtered
+
+        # Fill NaN values with 0 for distance calculation
+        df[selected_features] = df[selected_features].fillna(0)
+
         ref_row = df[df['stem'] == reference_file]
         if ref_row.empty:
             return df
