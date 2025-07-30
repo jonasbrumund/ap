@@ -1,9 +1,12 @@
+# This script copies all .wav files from a sample folder to
+# a destination folder, preserving the directory structure.
+
 import os
 
 cwd = os.getcwd()
 
-name = 'Dubstep kit 01 140bpm'
-sample_folder = os.path.join('/Users/jonasbrumund/Downloads', name)
+name = 'Insert Sample Folder Name Here'  # e.g. 'Dubstep kit 01 140bpm'
+sample_folder = os.path.join('Insert Downloads Folder', name)
 
 copy = 'musicradar_copy2'
 destination_folder = os.path.join(cwd, 'Samples', copy, name)

@@ -1,3 +1,10 @@
+# This script extracts JSON data from the all_jsonfiles file into
+# subfolders in the Samples folder, creating JSON files for each
+# subfolder (audiocommons, chroma_analysis, pt_analysis) based on the
+# structure of the all_jsonfiles file. It handles special cases for
+# atmospheric samples and ensures that the JSON files are created
+# correctly with the necessary content.
+
 import os
 
 cwd = os.getcwd()

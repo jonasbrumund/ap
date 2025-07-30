@@ -1,3 +1,6 @@
+# This file contains functions to extract the json data into dataframes
+# for each subfolder (audiocommons, chroma_analysis, pt_analysis).
+
 import os
 import pandas as pd
 
@@ -132,7 +135,6 @@ def check_subdirectories():
                     csv_path = os.path.join(cwd, 'ap')
                     # csv_path = os.path.join(csv_path, 'audiocommons_data.csv')
 
-
                     # chek if dataframe exists to add header at the top
                     if not os.path.exists(os.path.join(csv_path, 'audiocommons_data.csv')):
                         audiocommons_df.to_csv(os.path.join(csv_path, 'audiocommons_data.csv'), mode='w', header=True, index=False)
@@ -143,6 +145,3 @@ def check_subdirectories():
                         audiocommons_df.to_csv(os.path.join(csv_path, 'audiocommons_data.csv'), mode='a', header=False, index=False)
                         chroma_df.to_csv(os.path.join(csv_path, 'chroma_data.csv'), mode='a', header=False, index=False)
                         pt_analysis_df.to_csv(os.path.join(csv_path, 'pytimbre_data.csv'), mode='a', header=False, index=False)
-
-
-

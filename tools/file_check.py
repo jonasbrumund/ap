@@ -1,3 +1,7 @@
+# This script checks for the existence of specific subdirectories and JSON files
+# in a sample folder, ensuring that all necessary files are present
+# and logging any missing entries to a log file.
+
 import os
 
 cwd = os.getcwd()
