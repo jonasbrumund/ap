@@ -7,7 +7,8 @@ class SampleDataModel:
     def __init__(self, csv_path):
         self.df_all = pd.read_csv(
             csv_path,
-            dtype=str  # vermeidet teure Typ-Inferezen
+            # dtype=str  # vermeidet teure Typ-Inferezen
+            low_memory=False,  # verhindert Warnungen bei gemischten Datentypen
         )
         self.df_filtered = self.df_all.copy()
 
